@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Auto-download files from Telegram chats by extension",
   "main": "src/main/main.js",
+  "author": {
+    "name": "DDziubenko",
+    "email": "hedgrin@gmail.com"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
