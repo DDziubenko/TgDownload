@@ -1,6 +1,6 @@
 {
   "name": "tg-downloader",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Auto-download files from Telegram chats by extension",
   "main": "src/main/main.js",
   "author": {
@@ -17,9 +17,10 @@
     "build:all": "electron-builder --mac --win --linux"
   },
   "dependencies": {
-    "telegram": "^2.26.11",
     "electron-store": "^8.2.0",
-    "input": "^1.0.1"
+    "input": "^1.0.1",
+    "qrcode": "^1.5.4",
+    "telegram": "^2.26.11"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -39,17 +40,33 @@
     ],
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "public.app-category.utilities",
       "icon": "assets/icon.icns"
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/icon.ico"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility",
       "icon": "assets/icon.png"
     },

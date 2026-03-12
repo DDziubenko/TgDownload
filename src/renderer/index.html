@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:"/>
   <title>TG Downloader</title>
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -111,40 +111,7 @@
             <h1>TG Downloader</h1>
             <p class="login-sub">Auto-download files from Telegram chats</p>
 
-            <!-- Step 1: API credentials -->
-            <div id="step-api" class="login-step active">
-              <div class="step-label"><span class="step-num">1</span> Telegram API Credentials</div>
-              <p class="step-hint">Get your API ID and Hash from <strong>my.telegram.org</strong> → API Development Tools</p>
-              <div class="field-group">
-                <label>API ID</label>
-                <input type="text" id="input-api-id" placeholder="12345678" autocomplete="off"/>
-              </div>
-              <div class="field-group">
-                <label>API Hash</label>
-                <input type="text" id="input-api-hash" placeholder="0123456789abcdef0123456789abcdef" autocomplete="off"/>
-              </div>
-              <div class="field-group">
-                <label>Phone Number</label>
-                <input type="text" id="input-phone" placeholder="+1234567890" autocomplete="off"/>
-              </div>
-              <button class="btn-primary full" id="btn-send-code">Send Code →</button>
-              <div id="api-error" class="error-msg hidden"></div>
-            </div>
-
-            <!-- Step 2: Code -->
-            <div id="step-code" class="login-step">
-              <div class="step-label"><span class="step-num">2</span> Enter Verification Code</div>
-              <p class="step-hint">Telegram sent a code to your app or SMS</p>
-              <div class="field-group">
-                <label>Code</label>
-                <input type="text" id="input-code" placeholder="12345" maxlength="5" autocomplete="off"/>
-              </div>
-              <button class="btn-primary full" id="btn-sign-in">Verify →</button>
-              <button class="btn-ghost full" id="btn-back-to-api">← Back</button>
-              <div id="code-error" class="error-msg hidden"></div>
-            </div>
-
-            <!-- Step 3: 2FA -->
+            <!-- Step 2FA: Two-Factor Authentication (shown after QR scan if needed) -->
             <div id="step-2fa" class="login-step">
               <div class="step-label"><span class="step-num">3</span> Two-Factor Authentication</div>
               <p class="step-hint">Your account has 2FA enabled</p>
@@ -154,6 +121,34 @@
               </div>
               <button class="btn-primary full" id="btn-2fa">Confirm →</button>
               <div id="twofa-error" class="error-msg hidden"></div>
+            </div>
+
+            <!-- Step QR: QR Code login -->
+            <div id="step-qr" class="login-step active">
+              <div class="step-label">QR Code Login</div>
+              <p id="qr-hint" class="step-hint">Enter your API credentials, then scan the QR code with your Telegram app.</p>
+              <div id="qr-api-fields">
+                <div class="field-group">
+                  <label>API ID</label>
+                  <input type="text" id="qr-api-id" placeholder="12345678" autocomplete="off"/>
+                </div>
+                <div class="field-group">
+                  <label>API Hash</label>
+                  <input type="text" id="qr-api-hash" placeholder="0123456789abcdef0123456789abcdef" autocomplete="off"/>
+                </div>
+                <button class="btn-primary full" id="btn-start-qr">Generate QR Code →</button>
+                <div id="qr-api-error" class="error-msg hidden"></div>
+              </div>
+              <div id="qr-display" class="hidden">
+                <div class="qr-wrap">
+                  <img id="qr-image" src="" alt="QR Code" class="qr-image"/>
+                  <div id="qr-status" class="qr-status">Waiting for scan…</div>
+                </div>
+                <p class="step-hint" style="margin-top:12px">
+                  Open <strong>Telegram</strong> → Settings → Devices → Link Desktop Device
+                </p>
+                <button class="btn-ghost full" id="btn-cancel-qr">Cancel</button>
+              </div>
             </div>
           </div>
         </div>

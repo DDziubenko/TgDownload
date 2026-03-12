@@ -6,10 +6,10 @@ contextBridge.exposeInMainWorld('api', {
   setConfig:  (key, value)           => ipcRenderer.invoke('config:set', key, value),
 
   // Auth
-  sendCode:   (apiId, apiHash, phone) => ipcRenderer.invoke('auth:sendCode', apiId, apiHash, phone),
-  signIn:     (phone, hash, code)     => ipcRenderer.invoke('auth:signIn', phone, hash, code),
-  submit2FA:  (password)              => ipcRenderer.invoke('auth:submit2FA', password),
-  logout:     ()                      => ipcRenderer.invoke('auth:logout'),
+  submit2FA:  (password)   => ipcRenderer.invoke('auth:submit2FA', password),
+  logout:     ()           => ipcRenderer.invoke('auth:logout'),
+  startQr:    (apiId, apiHash) => ipcRenderer.invoke('auth:startQr', apiId, apiHash),
+  cancelQr:   ()           => ipcRenderer.invoke('auth:cancelQr'),
 
   // Client
   connect:    ()                      => ipcRenderer.invoke('client:connect'),
@@ -30,7 +30,10 @@ contextBridge.exposeInMainWorld('api', {
 
   // Events from main process → renderer
   on: (channel, cb) => {
-    const allowed = ['download:progress', 'download:complete', 'download:error'];
+    const allowed = [
+      'download:progress', 'download:complete', 'download:error',
+      'auth:qrToken', 'auth:qrDone', 'auth:qrError', 'auth:qrNeed2FA'
+    ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, data) => cb(data));
     }

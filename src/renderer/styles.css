@@ -279,10 +279,33 @@ body { background: var(--bg-base); color: var(--text-primary); height: 100vh; ov
   margin-bottom: 6px;
 }
 
-.login-sub { color: var(--text-secondary); font-size: 14px; margin-bottom: 28px; }
+.login-sub { color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; }
+
 
 .login-step { display: none; flex-direction: column; gap: 14px; }
 .login-step.active { display: flex; }
+
+.qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.qr-image {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  display: block;
+}
+.qr-status {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
 
 .step-label {
   display: flex;

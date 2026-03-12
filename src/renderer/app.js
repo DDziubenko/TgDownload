@@ -3,8 +3,6 @@ let state = {
   config: null,
   allChats: [],
   isMonitoring: false,
-  phoneCodeHash: null,
-  phone: null,
   editingRuleIndex: null
 };
 
@@ -55,6 +53,7 @@ function clearError(elId) {
 
 /* ── Navigation ──────────────────────────────────────────────────────────────── */
 function navigate(page) {
+  if (!state.config?.isLoggedIn) return;
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.page === page);
   });
@@ -70,26 +69,63 @@ function showLoginPage() {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   $('page-login').classList.add('active');
+  setNavDisabled(true);
+  // Reset QR panel to initial state
+  $('step-2fa').classList.remove('active');
+  $('step-qr').classList.add('active');
+  show($('qr-api-fields'));
+  hide($('qr-display'));
+  $('qr-image').src = '';
+  $('qr-status').textContent = 'Waiting for scan…';
+  $('qr-status').style.color = '';
+}
+
+function setNavDisabled(disabled) {
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.disabled = disabled;
+    btn.style.opacity = disabled ? '0.35' : '';
+    btn.style.cursor = disabled ? 'not-allowed' : '';
+    btn.style.pointerEvents = disabled ? 'none' : '';
+  });
 }
 
 /* ── Init ────────────────────────────────────────────────────────────────────── */
 async function init() {
   console.log('[app] init started');
 
-  // Wire login buttons immediately so UI is responsive
-  $('btn-send-code').addEventListener('click', handleSendCode);
-  $('btn-sign-in').addEventListener('click', handleSignIn);
-  $('btn-back-to-api').addEventListener('click', () => {
-    $('step-code').classList.remove('active');
-    $('step-api').classList.add('active');
-  });
-  $('btn-2fa').addEventListener('click', handle2FA);
+  setNavDisabled(true);
 
-  $('input-api-id').addEventListener('keydown',  e => { if (e.key === 'Enter') $('input-api-hash').focus(); });
-  $('input-api-hash').addEventListener('keydown', e => { if (e.key === 'Enter') $('input-phone').focus(); });
-  $('input-phone').addEventListener('keydown',   e => { if (e.key === 'Enter') handleSendCode(); });
-  $('input-code').addEventListener('keydown',    e => { if (e.key === 'Enter') handleSignIn(); });
-  $('input-2fa').addEventListener('keydown',     e => { if (e.key === 'Enter') handle2FA(); });
+  // Wire 2FA and QR login
+  $('btn-2fa').addEventListener('click', handle2FA);
+  $('btn-start-qr').addEventListener('click', handleStartQr);
+  $('btn-cancel-qr').addEventListener('click', handleCancelQr);
+  window.api.on('auth:qrToken', ({ dataUrl }) => {
+    $('qr-image').src = dataUrl;
+    $('qr-status').textContent = 'Waiting for scan…';
+  });
+  window.api.on('auth:qrDone', async () => {
+    $('qr-status').textContent = '✓ Scanned! Logging in…';
+    state.config = await window.api.getConfig();
+    setupLoggedInUI();
+  });
+  window.api.on('auth:qrNeed2FA', () => {
+    show($('qr-api-fields'));
+    hide($('qr-display'));
+    $('step-qr').classList.remove('active');
+    $('step-2fa').classList.add('active');
+  });
+  window.api.on('auth:qrError', ({ error }) => {
+    $('qr-status').textContent = '✗ ' + (error || 'Error');
+    $('qr-status').style.color = 'var(--red, #ef4444)';
+    setTimeout(() => {
+      show($('qr-api-fields'));
+      hide($('qr-display'));
+    }, 2000);
+  });
+
+  $('input-2fa').addEventListener('keydown',   e => { if (e.key === 'Enter') handle2FA(); });
+  $('qr-api-id').addEventListener('keydown',   e => { if (e.key === 'Enter') $('qr-api-hash').focus(); });
+  $('qr-api-hash').addEventListener('keydown', e => { if (e.key === 'Enter') handleStartQr(); });
 
   // Wire nav
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -117,6 +153,8 @@ async function init() {
 }
 
 function setupLoggedInUI() {
+  state.config.isLoggedIn = true;
+  setNavDisabled(false);
   state.isMonitoring = state.config.isMonitoring || false;
   renderSettings();
   refreshDashboard();
@@ -465,73 +503,43 @@ function setupToggleSettings() {
   });
 }
 
+/* ── QR Login ────────────────────────────────────────────────────────────────── */
+
+async function handleStartQr() {
+  clearError('qr-api-error');
+  const apiId   = $('qr-api-id').value.trim();
+  const apiHash = $('qr-api-hash').value.trim();
+  if (!apiId || !apiHash) {
+    showError('qr-api-error', 'API ID and Hash are required');
+    return;
+  }
+  const btn = $('btn-start-qr');
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
+
+  const res = await window.api.startQr(apiId, apiHash);
+
+  btn.disabled = false;
+  btn.textContent = 'Generate QR Code →';
+
+  if (!res.success) {
+    showError('qr-api-error', res.error || 'Failed to start QR login');
+    return;
+  }
+
+  hide($('qr-api-fields'));
+  show($('qr-display'));
+  $('qr-status').textContent = 'Generating QR code…';
+}
+
+async function handleCancelQr() {
+  await window.api.cancelQr();
+  show($('qr-api-fields'));
+  hide($('qr-display'));
+  $('qr-image').src = '';
+}
+
 /* ── Auth ────────────────────────────────────────────────────────────────────── */
-async function handleSendCode() {
-  console.log('[handleSendCode] called');
-  clearError('api-error');
-
-  const apiId   = $('input-api-id').value.trim();
-  const apiHash = $('input-api-hash').value.trim();
-  const phone   = $('input-phone').value.trim();
-
-  if (!apiId || !apiHash || !phone) {
-    showError('api-error', 'All fields are required');
-    return;
-  }
-
-  const btn = $('btn-send-code');
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-
-  const res = await window.api.sendCode(apiId, apiHash, phone);
-  console.log('[handleSendCode] result:', res);
-
-  btn.disabled = false;
-  btn.textContent = 'Send Code →';
-
-  if (!res.success) {
-    showError('api-error', res.error || 'Failed to send code');
-    return;
-  }
-
-  state.phone = phone;
-  state.phoneCodeHash = res.phoneCodeHash;
-  $('step-api').classList.remove('active');
-  $('step-code').classList.add('active');
-  $('input-code').focus();
-}
-
-async function handleSignIn() {
-  console.log('[handleSignIn] called');
-  clearError('code-error');
-
-  const code = $('input-code').value.trim();
-  if (!code) { showError('code-error', 'Enter the verification code'); return; }
-
-  const btn = $('btn-sign-in');
-  btn.disabled = true;
-  btn.textContent = 'Verifying…';
-
-  const res = await window.api.signIn(state.phone, state.phoneCodeHash, code);
-  console.log('[handleSignIn] result:', res);
-
-  btn.disabled = false;
-  btn.textContent = 'Verify →';
-
-  if (res.need2FA) {
-    $('step-code').classList.remove('active');
-    $('step-2fa').classList.add('active');
-    $('input-2fa').focus();
-    return;
-  }
-
-  if (!res.success) {
-    showError('code-error', res.error || 'Invalid code');
-    return;
-  }
-
-  await afterLogin();
-}
 
 async function handle2FA() {
   console.log('[handle2FA] called');
@@ -566,16 +574,12 @@ async function afterLogin() {
 async function handleLogout() {
   if (!confirm('Log out from Telegram?')) return;
   await window.api.stopMonitor();
+  await window.api.cancelQr();
   await window.api.logout();
   state.config = {};
   state.isMonitoring = false;
-  $('step-code').classList.remove('active');
-  $('step-2fa').classList.remove('active');
-  $('step-api').classList.add('active');
-  $('input-api-id').value = '';
-  $('input-api-hash').value = '';
-  $('input-phone').value = '';
-  $('input-code').value = '';
+  $('qr-api-id').value = '';
+  $('qr-api-hash').value = '';
   showLoginPage();
 }
 

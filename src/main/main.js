@@ -3,12 +3,24 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 
+// Pre-require telegram modules once at startup to avoid lazy-loading race conditions
+const { TelegramClient, Api } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+
 const store = new Store();
 
 let mainWindow = null;
 let tray = null;
 let telegramClient = null;
 let isMonitoring = false;
+
+async function destroyClient() {
+  if (telegramClient) {
+    try { telegramClient.removeEventHandler(); } catch {}
+    try { await telegramClient.disconnect(); } catch {}
+    telegramClient = null;
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -23,7 +35,7 @@ function createWindow() {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      devTools: true
+      devTools: false
     }
   });
 
@@ -31,7 +43,6 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    mainWindow.webContents.openDevTools();
   });
 
   mainWindow.on('close', (e) => {
@@ -110,63 +121,77 @@ ipcMain.handle('config:set', (_, key, value) => {
 
 // ── IPC: Auth ─────────────────────────────────────────────────────────────────
 
-ipcMain.handle('auth:sendCode', async (_, apiId, apiHash, phone) => {
-  console.log('[auth:sendCode] called with apiId:', apiId, 'phone:', phone);
+ipcMain.handle('auth:startQr', async (_, apiId, apiHash) => {
+  console.log('[auth:startQr] called');
   try {
-    const { TelegramClient } = require('telegram');
-    const { StringSession } = require('telegram/sessions');
+    await destroyClient();
+    const QRCode = require('qrcode');
     const session = new StringSession('');
     telegramClient = new TelegramClient(session, parseInt(apiId), apiHash, {
-      connectionRetries: 3
+      connectionRetries: 5,
+      useWSS: false,
+      sequentialUpdates: false
     });
-    console.log('[auth:sendCode] connecting...');
     await telegramClient.connect();
-    console.log('[auth:sendCode] connected, sending code...');
-    const result = await telegramClient.sendCode({ apiId: parseInt(apiId), apiHash }, phone);
-    console.log('[auth:sendCode] code sent, hash:', result.phoneCodeHash);
     store.set('apiId', parseInt(apiId));
     store.set('apiHash', apiHash);
-    return { success: true, phoneCodeHash: result.phoneCodeHash };
+
+    telegramClient.signInUserWithQrCode(
+      { apiId: parseInt(apiId), apiHash },
+      {
+        qrCode: async ({ token, expires }) => {
+          const tokenB64 = Buffer.from(token)
+            .toString('base64')
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+          const qrUrl = `tg://login?token=${tokenB64}`;
+          const dataUrl = await QRCode.toDataURL(qrUrl, {
+            width: 200, margin: 2,
+            color: { dark: '#ffffff', light: '#161616' }
+          });
+          sendToRenderer('auth:qrToken', { dataUrl, expires });
+        },
+        onError: (err) => {
+          if (err.errorMessage === 'SESSION_PASSWORD_NEEDED') return true;
+          sendToRenderer('auth:qrError', { error: err.message });
+          return false;
+        }
+      }
+    )
+    .then(async () => {
+      const sessionString = telegramClient.session.save();
+      store.set('sessionString', sessionString);
+      console.log('[auth:startQr] success');
+      sendToRenderer('auth:qrDone', {});
+    })
+    .catch(err => {
+      if (err && err.message === 'USER_CANCELLED') return;
+      if (err && err.errorMessage === 'SESSION_PASSWORD_NEEDED') {
+        sendToRenderer('auth:qrNeed2FA', {});
+        return;
+      }
+      console.error('[auth:startQr] error:', err?.message);
+      sendToRenderer('auth:qrError', { error: err?.message || 'QR login failed' });
+    });
+
+    return { success: true };
   } catch (err) {
-    console.error('[auth:sendCode] ERROR:', err.message, err.stack);
+    console.error('[auth:startQr] connect error:', err.message);
     return { success: false, error: err.message };
   }
 });
 
-ipcMain.handle('auth:signIn', async (_, phone, phoneCodeHash, code) => {
-  console.log('[auth:signIn] called');
-  try {
-    await telegramClient.invoke(
-      new (require('telegram').Api.auth.SignIn)({
-        phoneNumber: phone,
-        phoneCodeHash,
-        phoneCode: code
-      })
-    );
-    const sessionString = telegramClient.session.save();
-    store.set('sessionString', sessionString);
-    console.log('[auth:signIn] success');
-    return { success: true };
-  } catch (err) {
-    console.error('[auth:signIn] ERROR:', err.message);
-    if (err.errorMessage === 'SESSION_PASSWORD_NEEDED') {
-      return { success: false, need2FA: true };
-    }
-    return { success: false, error: err.message };
-  }
+ipcMain.handle('auth:cancelQr', async () => {
+  await destroyClient();
+  return { success: true };
 });
 
 ipcMain.handle('auth:submit2FA', async (_, password) => {
   console.log('[auth:submit2FA] called');
   try {
     const { computeCheck } = require('telegram/Password');
-    const r = await telegramClient.invoke(
-      new (require('telegram').Api.account.GetPassword)()
-    );
+    const r = await telegramClient.invoke(new Api.account.GetPassword());
     const check = await computeCheck(r, password);
-    await telegramClient.invoke(
-      new (require('telegram').Api.auth.CheckPassword)({ password: check })
-    );
+    await telegramClient.invoke(new Api.auth.CheckPassword({ password: check }));
     const sessionString = telegramClient.session.save();
     store.set('sessionString', sessionString);
     return { success: true };
@@ -178,10 +203,9 @@ ipcMain.handle('auth:submit2FA', async (_, password) => {
 
 ipcMain.handle('auth:logout', async () => {
   try {
-    if (telegramClient) await telegramClient.disconnect();
+    await destroyClient();
     store.set('sessionString', '');
     store.set('watchedChats', []);
-    telegramClient = null;
     isMonitoring = false;
     updateTrayMenu();
     return { success: true };
@@ -195,21 +219,7 @@ ipcMain.handle('auth:logout', async () => {
 ipcMain.handle('client:connect', async () => {
   const sessionString = store.get('sessionString', '');
   if (!sessionString) return { success: false, error: 'No session' };
-  try {
-    const { TelegramClient } = require('telegram');
-    const { StringSession } = require('telegram/sessions');
-    telegramClient = new TelegramClient(
-      new StringSession(sessionString),
-      store.get('apiId'),
-      store.get('apiHash'),
-      { connectionRetries: 5 }
-    );
-    await telegramClient.connect();
-    return { success: true };
-  } catch (err) {
-    console.error('[client:connect] ERROR:', err.message);
-    return { success: false, error: err.message };
-  }
+  return connectClient();
 });
 
 // ── IPC: Chats ────────────────────────────────────────────────────────────────
@@ -273,17 +283,24 @@ async function connectClient() {
   const sessionString = store.get('sessionString', '');
   if (!sessionString) return { success: false, error: 'No session saved' };
   try {
-    const { TelegramClient } = require('telegram');
-    const { StringSession } = require('telegram/sessions');
+    await destroyClient();
     telegramClient = new TelegramClient(
       new StringSession(sessionString),
       store.get('apiId'),
       store.get('apiHash'),
-      { connectionRetries: 5 }
+      { connectionRetries: 5, useWSS: false, sequentialUpdates: false }
     );
     await telegramClient.connect();
+
+    // Suppress noisy TIMEOUT errors from the update loop — they are non-fatal
+    telegramClient.catch = (err) => {
+      if (err && err.message === 'TIMEOUT') return;
+      console.error('[telegramClient] unhandled error:', err?.message);
+    };
+
     return { success: true };
   } catch (err) {
+    console.error('[connectClient] ERROR:', err.message);
     return { success: false, error: err.message };
   }
 }
@@ -432,6 +449,16 @@ function stopMonitoring() {
   store.set('monitoringActive', false);
   updateTrayMenu();
 }
+
+// Suppress TIMEOUT errors that leak from gramjs _updateLoop — these are non-fatal
+process.on('uncaughtException', (err) => {
+  if (err && err.message === 'TIMEOUT') return;
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (err) => {
+  if (err && err.message === 'TIMEOUT') return;
+  console.error('[unhandledRejection]', err);
+});
 
 function sendToRenderer(channel, data) {
   if (mainWindow && !mainWindow.isDestroyed()) {
