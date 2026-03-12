@@ -457,8 +457,8 @@ body { background: var(--bg-base); color: var(--text-primary); height: 100vh; ov
 }
 
 .check-icon.pending {
-  background: var(--bg-raised);
-  border: 1.5px solid var(--border-strong);
+  background: none;
+  border: none;
 }
 
 .check-icon.done {

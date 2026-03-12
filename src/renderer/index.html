@@ -213,21 +213,45 @@
             <div class="panel-header">Quick Setup Status</div>
             <div id="setup-checklist" class="setup-checklist">
               <div class="check-item" id="check-auth">
-                <div class="check-icon pending"></div>
+                <div class="check-icon pending">
+                  <svg class="check-svg-done" width="18" height="18" viewBox="0 0 18 18" fill="none" style="display:none">
+                    <circle cx="9" cy="9" r="9" fill="#22c55e"/>
+                    <path d="M5 9l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <svg class="check-svg-pending" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <circle cx="9" cy="9" r="8" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                  </svg>
+                </div>
                 <div>
                   <div class="check-title">Connected to Telegram</div>
                   <div class="check-sub">Login with your account</div>
                 </div>
               </div>
               <div class="check-item" id="check-chats">
-                <div class="check-icon pending"></div>
+                <div class="check-icon pending">
+                  <svg class="check-svg-done" width="18" height="18" viewBox="0 0 18 18" fill="none" style="display:none">
+                    <circle cx="9" cy="9" r="9" fill="#22c55e"/>
+                    <path d="M5 9l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <svg class="check-svg-pending" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <circle cx="9" cy="9" r="8" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                  </svg>
+                </div>
                 <div>
                   <div class="check-title">Chats selected</div>
                   <div class="check-sub">Pick chats to monitor</div>
                 </div>
               </div>
               <div class="check-item" id="check-rules">
-                <div class="check-icon pending"></div>
+                <div class="check-icon pending">
+                  <svg class="check-svg-done" width="18" height="18" viewBox="0 0 18 18" fill="none" style="display:none">
+                    <circle cx="9" cy="9" r="9" fill="#22c55e"/>
+                    <path d="M5 9l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <svg class="check-svg-pending" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <circle cx="9" cy="9" r="8" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+                  </svg>
+                </div>
                 <div>
                   <div class="check-title">Rules configured</div>
                   <div class="check-sub">Map extensions to folders</div>
@@ -243,9 +267,8 @@
         <div class="page-header">
           <h2>Watched Chats</h2>
           <button class="btn-primary" id="btn-load-chats">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1.5A5.5 5.5 0 1 1 1.5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M1.5 3.5V7H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 842.488 842.488" fill="currentColor">
+              <path d="M741.744,177.188c-28.1-35.2-61.5-65.3-99.301-89.6c-35.6-22.9-74.299-40-115-50.9c-5.4-1.5-11,1.8-12.4,7.3l-22.199,92.4c-1.301,5.2,1.9,10.5,7,12c59.5,16.5,113.199,51.9,152,100.5c20.4,25.6,36.301,54.1,47.199,84.7c11.301,31.7,17,65,17,99.1c0,78.801-30.699,152.801-86.398,208.5c-55.701,55.701-129.801,86.4-208.5,86.4c-78.801,0-152.801-30.699-208.5-86.4c-55.7-55.699-86.3-129.699-86.3-208.5c0-58.2,16.9-114.5,48.9-162.8c18.3-27.6,40.9-51.7,66.7-71.5c0,0,30.6,40.1,30.6,40.2c5.9,8.4,20,8.1,25.3-1.1c0,0,123.4-215.6,123.601-216.1c5.9-10.2-3.101-23.1-14.7-21.2c0,0-245.3,40.8-245.6,40.8c-10.4,1.7-15.8,14.7-9.8,23.3l24.9,39.6c-37.7,28.1-70.5,62.7-96.8,102.4c-44.5,67.2-68.1,145.4-68.1,226.3c0,55.301,10.8,109,32.2,159.6c20.6,48.801,50.2,92.701,87.8,130.301s81.5,67.199,130.3,87.799c50.6,21.4,104.3,32.201,159.6,32.201c55.299,0,109-10.801,159.6-32.201c48.801-20.6,92.699-50.199,130.301-87.799c37.6-37.6,67.199-81.5,87.799-130.301c21.4-50.6,32.201-104.299,32.201-159.6c0-47.2-8-93.6-23.701-137.7C792.244,252.288,770.145,212.688,741.744,177.188z"/>
             </svg>
             Load Chats
           </button>

@@ -13,6 +13,8 @@ const $ = id => document.getElementById(id);
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
 
+const RELOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 842.488 842.488" fill="currentColor"><path d="M741.744,177.188c-28.1-35.2-61.5-65.3-99.301-89.6c-35.6-22.9-74.299-40-115-50.9c-5.4-1.5-11,1.8-12.4,7.3l-22.199,92.4c-1.301,5.2,1.9,10.5,7,12c59.5,16.5,113.199,51.9,152,100.5c20.4,25.6,36.301,54.1,47.199,84.7c11.301,31.7,17,65,17,99.1c0,78.801-30.699,152.801-86.398,208.5c-55.701,55.701-129.801,86.4-208.5,86.4c-78.801,0-152.801-30.699-208.5-86.4c-55.7-55.699-86.3-129.699-86.3-208.5c0-58.2,16.9-114.5,48.9-162.8c18.3-27.6,40.9-51.7,66.7-71.5c0,0,30.6,40.1,30.6,40.2c5.9,8.4,20,8.1,25.3-1.1c0,0,123.4-215.6,123.601-216.1c5.9-10.2-3.101-23.1-14.7-21.2c0,0-245.3,40.8-245.6,40.8c-10.4,1.7-15.8,14.7-9.8,23.3l24.9,39.6c-37.7,28.1-70.5,62.7-96.8,102.4c-44.5,67.2-68.1,145.4-68.1,226.3c0,55.301,10.8,109,32.2,159.6c20.6,48.801,50.2,92.701,87.8,130.301s81.5,67.199,130.3,87.799c50.6,21.4,104.3,32.201,159.6,32.201c55.299,0,109-10.801,159.6-32.201c48.801-20.6,92.699-50.199,130.301-87.799c37.6-37.6,67.199-81.5,87.799-130.301c21.4-50.6,32.201-104.299,32.201-159.6c0-47.2-8-93.6-23.701-137.7C792.244,252.288,770.145,212.688,741.744,177.188z"/></svg>`;
+
 function formatBytes(b) {
   if (!b) return '';
   if (b < 1024) return b + ' B';
@@ -74,12 +76,7 @@ function showLoginPage() {
 async function init() {
   console.log('[app] init started');
 
-  // Wire up nav clicks early so UI is responsive
-  document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => navigate(btn.dataset.page));
-  });
-
-  // Wire up login buttons early
+  // Wire login buttons immediately so UI is responsive
   $('btn-send-code').addEventListener('click', handleSendCode);
   $('btn-sign-in').addEventListener('click', handleSignIn);
   $('btn-back-to-api').addEventListener('click', () => {
@@ -88,14 +85,18 @@ async function init() {
   });
   $('btn-2fa').addEventListener('click', handle2FA);
 
-  // Enter key navigation in login form
   $('input-api-id').addEventListener('keydown',  e => { if (e.key === 'Enter') $('input-api-hash').focus(); });
   $('input-api-hash').addEventListener('keydown', e => { if (e.key === 'Enter') $('input-phone').focus(); });
   $('input-phone').addEventListener('keydown',   e => { if (e.key === 'Enter') handleSendCode(); });
   $('input-code').addEventListener('keydown',    e => { if (e.key === 'Enter') handleSignIn(); });
   $('input-2fa').addEventListener('keydown',     e => { if (e.key === 'Enter') handle2FA(); });
 
-  console.log('[app] checking config...');
+  // Wire nav
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => navigate(btn.dataset.page));
+  });
+
+  console.log('[app] loading config...');
   state.config = await window.api.getConfig();
   console.log('[app] isLoggedIn:', state.config.isLoggedIn);
 
@@ -146,20 +147,24 @@ function refreshDashboard() {
 }
 
 function setCheck(id, done) {
-  const icon = $(id).querySelector('.check-icon');
-  icon.classList.toggle('done', done);
-  icon.classList.toggle('pending', !done);
+  const container = $(id);
+  const svgDone    = container.querySelector('.check-svg-done');
+  const svgPending = container.querySelector('.check-svg-pending');
+  if (svgDone)    svgDone.style.display    = done ? 'block' : 'none';
+  if (svgPending) svgPending.style.display = done ? 'none'  : 'block';
 }
 
 function updateMonitorButton() {
   const btn = $('btn-toggle-monitor');
   if (state.isMonitoring) {
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 842.488 842.488" fill="currentColor"><path d="M741.744,177.188c-28.1-35.2-61.5-65.3-99.301-89.6c-35.6-22.9-74.299-40-115-50.9c-5.4-1.5-11,1.8-12.4,7.3l-22.199,92.4c-1.301,5.2,1.9,10.5,7,12c59.5,16.5,113.199,51.9,152,100.5c20.4,25.6,36.301,54.1,47.199,84.7c11.301,31.7,17,65,17,99.1c0,78.801-30.699,152.801-86.398,208.5c-55.701,55.701-129.801,86.4-208.5,86.4c-78.801,0-152.801-30.699-208.5-86.4c-55.7-55.699-86.3-129.699-86.3-208.5c0-58.2,16.9-114.5,48.9-162.8c18.3-27.6,40.9-51.7,66.7-71.5c0,0,30.6,40.1,30.6,40.2c5.9,8.4,20,8.1,25.3-1.1c0,0,123.4-215.6,123.601-216.1c5.9-10.2-3.101-23.1-14.7-21.2c0,0-245.3,40.8-245.6,40.8c-10.4,1.7-15.8,14.7-9.8,23.3l24.9,39.6c-37.7,28.1-70.5,62.7-96.8,102.4c-44.5,67.2-68.1,145.4-68.1,226.3c0,55.301,10.8,109,32.2,159.6c20.6,48.801,50.2,92.701,87.8,130.301s81.5,67.199,130.3,87.799c50.6,21.4,104.3,32.201,159.6,32.201c55.299,0,109-10.801,159.6-32.201c48.801-20.6,92.699-50.199,130.301-87.799c37.6-37.6,67.199-81.5,87.799-130.301c21.4-50.6,32.201-104.299,32.201-159.6c0-47.2-8-93.6-23.701-137.7C792.244,252.288,770.145,212.688,741.744,177.188z"/></svg> Load Chats`;    btn.classList.add('stopping');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="3" y="3" width="3" height="8" rx="1" fill="currentColor"/><rect x="8" y="3" width="3" height="8" rx="1" fill="currentColor"/></svg> Stop Monitoring`;
+    btn.classList.add('stopping');
     $('status-dot').className = 'status-indicator active';
     $('status-text').textContent = 'Monitoring';
     show($('live-dot'));
   } else {
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 842.488 842.488" fill="currentColor"><path d="M741.744,177.188c-28.1-35.2-61.5-65.3-99.301-89.6c-35.6-22.9-74.299-40-115-50.9c-5.4-1.5-11,1.8-12.4,7.3l-22.199,92.4c-1.301,5.2,1.9,10.5,7,12c59.5,16.5,113.199,51.9,152,100.5c20.4,25.6,36.301,54.1,47.199,84.7c11.301,31.7,17,65,17,99.1c0,78.801-30.699,152.801-86.398,208.5c-55.701,55.701-129.801,86.4-208.5,86.4c-78.801,0-152.801-30.699-208.5-86.4c-55.7-55.699-86.3-129.699-86.3-208.5c0-58.2,16.9-114.5,48.9-162.8c18.3-27.6,40.9-51.7,66.7-71.5c0,0,30.6,40.1,30.6,40.2c5.9,8.4,20,8.1,25.3-1.1c0,0,123.4-215.6,123.601-216.1c5.9-10.2-3.101-23.1-14.7-21.2c0,0-245.3,40.8-245.6,40.8c-10.4,1.7-15.8,14.7-9.8,23.3l24.9,39.6c-37.7,28.1-70.5,62.7-96.8,102.4c-44.5,67.2-68.1,145.4-68.1,226.3c0,55.301,10.8,109,32.2,159.6c20.6,48.801,50.2,92.701,87.8,130.301s81.5,67.199,130.3,87.799c50.6,21.4,104.3,32.201,159.6,32.201c55.299,0,109-10.801,159.6-32.201c48.801-20.6,92.699-50.199,130.301-87.799c37.6-37.6,67.199-81.5,87.799-130.301c21.4-50.6,32.201-104.299,32.201-159.6c0-47.2-8-93.6-23.701-137.7C792.244,252.288,770.145,212.688,741.744,177.188z"/></svg> Load Chats`;    btn.classList.remove('stopping');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polygon points="3,2 12,7 3,12" fill="currentColor"/></svg> Start Monitoring`;
+    btn.classList.remove('stopping');
     $('status-dot').className = 'status-indicator idle';
     $('status-text').textContent = 'Idle';
     hide($('live-dot'));
@@ -227,9 +232,13 @@ async function loadChats() {
   const btn = $('btn-load-chats');
   btn.disabled = true;
   btn.textContent = 'Loading…';
+
   const res = await window.api.loadChats();
+
   btn.disabled = false;
-  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 842.488 842.488" fill="currentColor"><path d="M741.744,177.188c-28.1-35.2-61.5-65.3-99.301-89.6c-35.6-22.9-74.299-40-115-50.9c-5.4-1.5-11,1.8-12.4,7.3l-22.199,92.4c-1.301,5.2,1.9,10.5,7,12c59.5,16.5,113.199,51.9,152,100.5c20.4,25.6,36.301,54.1,47.199,84.7c11.301,31.7,17,65,17,99.1c0,78.801-30.699,152.801-86.398,208.5c-55.701,55.701-129.801,86.4-208.5,86.4c-78.801,0-152.801-30.699-208.5-86.4c-55.7-55.699-86.3-129.699-86.3-208.5c0-58.2,16.9-114.5,48.9-162.8c18.3-27.6,40.9-51.7,66.7-71.5c0,0,30.6,40.1,30.6,40.2c5.9,8.4,20,8.1,25.3-1.1c0,0,123.4-215.6,123.601-216.1c5.9-10.2-3.101-23.1-14.7-21.2c0,0-245.3,40.8-245.6,40.8c-10.4,1.7-15.8,14.7-9.8,23.3l24.9,39.6c-37.7,28.1-70.5,62.7-96.8,102.4c-44.5,67.2-68.1,145.4-68.1,226.3c0,55.301,10.8,109,32.2,159.6c20.6,48.801,50.2,92.701,87.8,130.301s81.5,67.199,130.3,87.799c50.6,21.4,104.3,32.201,159.6,32.201c55.299,0,109-10.801,159.6-32.201c48.801-20.6,92.699-50.199,130.301-87.799c37.6-37.6,67.199-81.5,87.799-130.301c21.4-50.6,32.201-104.299,32.201-159.6c0-47.2-8-93.6-23.701-137.7C792.244,252.288,770.145,212.688,741.744,177.188z"/></svg> Load Chats`;  if (!res.success) { alert(res.error); return; }
+  btn.innerHTML = `${RELOAD_ICON} Load Chats`;
+
+  if (!res.success) { alert(res.error); return; }
   state.allChats = res.chats;
   renderAllChats();
 }
@@ -318,7 +327,10 @@ function renderRules() {
 
   if (!rules.length) {
     list.innerHTML = `<div class="empty-state">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="4" y="6" width="24" height="20" rx="3" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.3"/><path d="M9 12h14M9 17h10M9 22h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/></svg>
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <rect x="4" y="5" width="24" height="22" rx="3" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.3"/>
+        <path d="M9 12h14M9 17.5h10M9 23h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
+      </svg>
       <span>No rules yet — add your first rule</span>
     </div>`;
     return;
@@ -406,7 +418,10 @@ function renderHistory(filter = '') {
 
   if (!filtered.length) {
     list.innerHTML = `<div class="empty-state">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.3"/><path d="M16 10v6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/></svg>
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.3"/>
+        <path d="M16 10v6.5l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.5"/>
+      </svg>
       <span>${filter ? `No results for "${filter}"` : 'No downloads yet'}</span>
     </div>`;
     return;
@@ -468,7 +483,6 @@ async function handleSendCode() {
   btn.disabled = true;
   btn.textContent = 'Sending…';
 
-  console.log('[handleSendCode] calling window.api.sendCode...');
   const res = await window.api.sendCode(apiId, apiHash, phone);
   console.log('[handleSendCode] result:', res);
 
@@ -611,4 +625,3 @@ function setupMainEvents() {
 
 /* ── Boot ────────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', init);
-console.log('app.js loaded');
